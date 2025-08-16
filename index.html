@@ -1,62 +1,155 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Barista Tip Calculator</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Barista Tip Splitter</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <meta name="color-scheme" content="light dark">
 </head>
 <body>
-  <header>
-    <h1>☕ Barista Tip Calculator</h1>
-    <div class="reminder">
-      <p><strong>Reminder:</strong> Please make sure and Payout Tips from register each time money is removed for a proper paper trail.</p>
-      <p>This calculator is for you to use to help determine tip distributions, but is not submitted for any record keeping. Please claim proper tips using the Daily Sales QR Code.</p>
+  <!-- Top reminders -->
+  <div class="banner">
+    <p>⚠️ <strong>Please make sure and Payout Tips from register each time money is removed for a proper paper trail.</strong></p>
+    <p>🧾 <strong>This calculator is for you to use to help determine tip distributions, but is not submitted for any record keeping. Please claim proper tips using the Daily Sales QR Code.</strong></p>
+  </div>
+
+  <header class="app-header">
+    <h1>Barista Tip Splitter</h1>
+    <div class="header-actions">
+      <button id="saveStateBtn" class="btn" type="button">💾 Save</button>
+      <button id="loadStateBtn" class="btn" type="button">📂 Load</button>
+      <button id="resetStateBtn" class="btn btn-ghost" type="button">↺ Reset</button>
     </div>
   </header>
 
-  <section>
-    <button class="accordion">📘 How To Use</button>
-    <div class="panel">
-      <ul>
-        <li>Anytime money is pulled from the register, it must be recorded as a "Paid Out".</li>
-        <li>All baristas working windows and making drinks during that time split tips evenly.</li>
-        <li>Baristas staying after shift just to clean are not eligible for tips.</li>
-        <li>Add each barista once, then enter all their shift ranges.</li>
-        <li>Enter cash/card tips for each auto-generated payout period.</li>
-        <li>Press "Calculate" to see each barista’s breakdown.</li>
-      </ul>
-    </div>
-  </section>
-
-  <main>
-    <!-- Step 1 -->
-    <section>
-      <h2>1) Barista Shifts</h2>
-      <p>Add each barista once. Then add one or more shift ranges per barista.</p>
-      <div id="baristas"></div>
-      <button id="addBarista">+ Add Barista</button>
+  <main class="container">
+    <!-- How To Use -->
+    <section class="card">
+      <details open class="howto">
+        <summary>How To Use</summary>
+        <ul>
+          <li>Every time money is pulled from the register, record a <strong>Paid Out</strong> for a clean paper trail.</li>
+          <li>Tips are split evenly among <strong>people actively working windows and making drinks</strong> during that time.</li>
+          <li>Not eligible: anyone off-shift and just staying to clean.</li>
+          <li>Add each barista once, then add <strong>one or more shifts</strong> under that barista.</li>
+          <li>Section 2 auto-creates payout periods (unique team + contiguous time). <strong>Any period &lt; 5 minutes is merged</strong> into an adjacent period.</li>
+          <li>Enter the Cash and Card Paid Out for each line, then <strong>Calculate</strong>.</li>
+        </ul>
+      </details>
     </section>
 
-    <!-- Step 2 -->
-    <section>
+    <!-- 1) Baristas -->
+    <section class="card">
+      <h2>1) Baristas & Shifts</h2>
+      <div class="row">
+        <div class="barista-form">
+          <label for="baristaName">Barista name</label>
+          <div class="inline">
+            <input id="baristaName" type="text" placeholder="e.g., Alex"/>
+            <button id="addBaristaBtn" class="btn" type="button">Add Barista</button>
+          </div>
+          <p class="hint">Add each barista once. Then add one or more shift ranges per barista.</p>
+        </div>
+      </div>
+      <div id="baristaList" class="list"></div>
+    </section>
+
+    <!-- 2) Auto periods -->
+    <section class="card">
       <h2>2) Tip Payout Amounts by Time Period</h2>
-      <p>These periods are auto-grouped by who was on shift at the same time. If periods are within 5 minutes of each other, they will be merged automatically.</p>
-      <button id="refreshPeriods">⟳ Refresh periods from shifts</button>
-      <div id="periods"></div>
+      <p class="hint">Auto-grouped by who was on at the same time. Periods <em>&lt; 5 min</em> are merged automatically. Enter Cash/Card for each line.</p>
+      <div class="row">
+        <button id="refreshPeriodsBtn" class="btn btn-ghost" type="button">↻ Refresh periods from shifts</button>
+        <span id="periodsDirtyBadge" class="badge" style="display:none;">shifts changed</span>
+      </div>
+      <div id="periodList" class="list"></div>
+      <div class="muted" id="noPeriodsNote" style="margin-top:8px; display:none;">
+        Add shifts above and click “Refresh periods from shifts” to generate payout lines.
+      </div>
     </section>
 
-    <!-- Step 3 -->
-    <section>
-      <h2>3) Results / Audit</h2>
-      <button id="calculate">💡 Calculate</button>
-      <div id="results"></div>
+    <!-- 3) Calculate -->
+    <section class="card">
+      <h2>3) Calculate</h2>
+      <div class="actions-right">
+        <button id="calcBtn" class="btn btn-primary" type="button">▶️ Run Calculation</button>
+      </div>
+
+      <!-- Quick totals first -->
+      <div id="quickResults" class="results hidden">
+        <h3>Quick Totals (Per Barista)</h3>
+        <div id="summary"></div>
+        <div class="actions-right pad-top">
+          <button id="toggleAuditBtn" class="btn" type="button">📑 Show Audit</button>
+          <button id="exportCsvBtn" class="btn" type="button">⬇️ Export CSV</button>
+          <button id="printBtn" class="btn btn-ghost" type="button">🖨️ Print</button>
+        </div>
+      </div>
+
+      <!-- Full audit collapsible -->
+      <details id="auditWrap" class="card inner hidden">
+        <summary><strong>Audit (Detailed math per period)</strong></summary>
+        <div id="auditLog" class="audit"></div>
+      </details>
     </section>
   </main>
 
-  <footer>
-    <p>Built for baristas 💜</p>
+  <footer class="app-footer">
+    <div>Made for fast end-of-day splits. ☕</div>
+    <a href="https://github.com" target="_blank" rel="noreferrer">Deploy on GitHub Pages</a>
   </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Templates -->
+  <template id="baristaItemTmpl">
+    <div class="item">
+      <div class="item-head">
+        <strong class="barista-name"></strong>
+        <div class="item-actions">
+          <button class="btn btn-ghost add-shift-btn" type="button">+ Add shift</button>
+          <button class="btn btn-ghost remove-barista-btn" type="button">Remove</button>
+        </div>
+      </div>
+      <div class="shift-list"></div>
+    </div>
+  </template>
+
+  <template id="shiftRowTmpl">
+    <div class="shift-row">
+      <div class="grid-2">
+        <div>
+          <label>In</label>
+          <input type="time" class="shift-in"/>
+        </div>
+        <div>
+          <label>Out</label>
+          <input type="time" class="shift-out"/>
+        </div>
+      </div>
+      <button class="btn btn-ghost remove-shift-btn" type="button">Remove</button>
+    </div>
+  </template>
+
+  <template id="periodRowTmpl">
+    <div class="period-row">
+      <div class="period-head">
+        <div class="when"></div>
+        <div class="who"></div>
+      </div>
+      <div class="period-inputs">
+        <label>Cash
+          <input type="number" class="cash" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+        </label>
+        <label>Card
+          <input type="number" class="card" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+        </label>
+        <button class="btn btn-ghost remove-period-btn" type="button">Remove</button>
+      </div>
+    </div>
+  </template>
 
   <script src="app.js"></script>
 </body>
