@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Barista Tip Splitter</title>
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="color-scheme" content="light dark">
+</head>
+<body>
+  <header class="app-header">
+    <h1>Barista Tip Splitter</h1>
+    <div class="header-actions">
+      <button id="saveStateBtn" class="btn">💾 Save</button>
+      <button id="loadStateBtn" class="btn">📂 Load</button>
+      <button id="resetStateBtn" class="btn btn-ghost">↺ Reset</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>1) Baristas & Shifts</h2>
+      <div class="row">
+        <div class="barista-form">
+          <label for="baristaName">Barista name</label>
+          <div class="inline">
+            <input id="baristaName" type="text" placeholder="e.g., Alex" />
+            <button id="addBaristaBtn" class="btn">Add Barista</button>
+          </div>
+          <p class="hint">Add each barista once. Then add one or more shift ranges per barista.</p>
+        </div>
+      </div>
+      <div id="baristaList" class="list"></div>
+    </section>
+
+    <section class="card">
+      <h2>2) Tip Chunks</h2>
+      <div class="row grid-3">
+        <div>
+          <label for="tipType">Type</label>
+          <select id="tipType">
+            <option value="cash">Cash</option>
+            <option value="card">Card</option>
+          </select>
+        </div>
+        <div>
+          <label for="tipAmount">Amount</label>
+          <input id="tipAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" />
+        </div>
+        <div class="grid-2">
+          <div>
+            <label for="tipStart">Start</label>
+            <input id="tipStart" type="time" />
+          </div>
+          <div>
+            <label for="tipEnd">End</label>
+            <input id="tipEnd" type="time" />
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <button id="addTipBtn" class="btn">Add Tip Chunk</button>
+      </div>
+      <div id="tipList" class="list"></div>
+    </section>
+
+    <section class="card">
+      <h2>3) Calculate</h2>
+      <div class="row grid-3">
+        <div class="switch">
+          <input type="checkbox" id="roundingToggle" />
+          <label for="roundingToggle">Smart rounding to cents (keeps totals exact)</label>
+        </div>
+        <div></div>
+        <div class="actions-right">
+          <button id="calcBtn" class="btn btn-primary">▶️ Run Calculation</button>
+        </div>
+      </div>
+
+      <div id="resultsWrap" class="results hidden">
+        <h3>Summary</h3>
+        <div id="summary"></div>
+
+        <div class="actions-right pad-top">
+          <button id="exportCsvBtn" class="btn">⬇️ Export CSV</button>
+          <button id="printBtn" class="btn btn-ghost">🖨️ Print</button>
+        </div>
+
+        <details class="audit">
+          <summary>Audit Trail (who got what, when, and why)</summary>
+          <div id="auditLog"></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Notes & Assumptions</h2>
+      <ul class="notes">
+        <li>Times are same-day in <strong>HH:MM</strong> (24h or AM/PM per your locale). End must be after start.</li>
+        <li>Each tip chunk is assumed to arrive <em>uniformly</em> over its time range.</li>
+        <li>At any moment, the tip amount is split evenly among all baristas clocked in at that moment.</li>
+        <li>“Smart rounding” adjusts pennies so per-type totals (Cash/Card) match your inputs exactly.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div>Made for fast end-of-day splits. ☕</div>
+    <a href="https://github.com" target="_blank" rel="noreferrer">Deploy on GitHub Pages</a>
+  </footer>
+
+  <template id="baristaItemTmpl">
+    <div class="item">
+      <div class="item-head">
+        <strong class="barista-name"></strong>
+        <div class="item-actions">
+          <button class="btn btn-ghost add-shift-btn">+ Add shift</button>
+          <button class="btn btn-ghost remove-barista-btn">Remove</button>
+        </div>
+      </div>
+      <div class="shift-list"></div>
+    </div>
+  </template>
+
+  <template id="shiftRowTmpl">
+    <div class="shift-row">
+      <div class="grid-2">
+        <div>
+          <label>In</label>
+          <input type="time" class="shift-in" />
+        </div>
+        <div>
+          <label>Out</label>
+          <input type="time" class="shift-out" />
+        </div>
+      </div>
+      <button class="btn btn-ghost remove-shift-btn">Remove</button>
+    </div>
+  </template>
+
+  <template id="tipItemTmpl">
+    <div class="item tip">
+      <div class="item-head">
+        <strong class="tip-title"></strong>
+        <div class="item-actions">
+          <button class="btn btn-ghost remove-tip-btn">Remove</button>
+        </div>
+      </div>
+      <div class="muted tip-meta"></div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
