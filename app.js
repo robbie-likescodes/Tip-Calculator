@@ -1,11 +1,15 @@
-/* Theme restored + "<5 min merge" with toast only if merges happened + merge notes in audit */
+/* Lavender theme + shift chips + period badges
+   + <5 min merge (toast only if used) + merge notes in Audit
+   + Quick Totals first; accordion Audit
+   + Print polish & CSV filename with date
+*/
 
 (function(){
   // ----- State -----
   const state = {
     baristas: [],                  // [{id,name,shifts:[{start,end}]}]
     periods: [],                   // [{id,start,end,teamIds:[id],cash,card}]
-    lastMergeNotes: []             // [{fromIdx,toIdx,infoText}]
+    lastMergeNotes: []             // [{from,to,dur}]
   };
   const SMOOTH_MINUTES = 5;
 
@@ -17,6 +21,13 @@
   function fmtMoney(n){ return (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function assertRangeValid(s,e){ const ss=timeToMin(s), ee=timeToMin(e); return ss!=null && ee!=null && ee>ss; }
   function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function todayStamp(){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
   // Toast
   const toastEl = $('#toast'); let toastTimer=null;
@@ -25,7 +36,7 @@
   // ----- Baristas UI -----
   const elBaristaList = $('#baristaList');
   const baristaItemTmpl = $('#baristaItemTmpl');
-  const shiftRowTmpl = $('#shiftRowTmpl');
+  const shiftChipTmpl = $('#shiftChipTmpl');
   const periodsDirtyBadge = $('#periodsDirtyBadge');
 
   function markPeriodsDirty(){ periodsDirtyBadge.style.display='inline-block'; }
@@ -38,23 +49,25 @@
 
       const shiftList = node.querySelector('.shift-list'); shiftList.innerHTML='';
       b.shifts.forEach((sh, idx)=>{
-        const row = shiftRowTmpl.content.firstElementChild.cloneNode(true);
-        row.querySelector('.shift-in').value = sh.start || '';
-        row.querySelector('.shift-out').value = sh.end || '';
-        row.querySelector('.remove-shift-btn').addEventListener('click', ()=>{
+        const chip = shiftChipTmpl.content.firstElementChild.cloneNode(true);
+        const inEl = chip.querySelector('.shift-in');
+        const outEl = chip.querySelector('.shift-out');
+        inEl.value = sh.start || '';
+        outEl.value = sh.end || '';
+        inEl.addEventListener('change', e=>{
+          sh.start = e.target.value;
+          if(sh.end && !assertRangeValid(sh.start, sh.end)){ alert('Shift end must be after start.'); sh.start=''; e.target.value=''; }
+          markPeriodsDirty();
+        });
+        outEl.addEventListener('change', e=>{
+          sh.end = e.target.value;
+          if(sh.start && !assertRangeValid(sh.start, sh.end)){ alert('Shift end must be after start.'); sh.end=''; e.target.value=''; }
+          markPeriodsDirty();
+        });
+        chip.querySelector('.chip-remove').addEventListener('click', ()=>{
           b.shifts.splice(idx,1); renderBaristas(); markPeriodsDirty(); toast('Shift removed.');
         });
-        row.querySelector('.shift-in').addEventListener('change', e=>{
-          sh.start = e.target.value;
-          if (sh.end && !assertRangeValid(sh.start, sh.end)) { alert('Shift end must be after start.'); sh.start=''; e.target.value=''; }
-          markPeriodsDirty();
-        });
-        row.querySelector('.shift-out').addEventListener('change', e=>{
-          sh.end = e.target.value;
-          if (sh.start && !assertRangeValid(sh.start, sh.end)) { alert('Shift end must be after start.'); sh.end=''; e.target.value=''; }
-          markPeriodsDirty();
-        });
-        shiftList.appendChild(row);
+        shiftList.appendChild(chip);
       });
 
       node.querySelector('.add-shift-btn').addEventListener('click', ()=>{
@@ -92,7 +105,6 @@
     return ids.sort(); // canonical
   }
   function eqArray(a,b){ if(a.length!==b.length) return false; for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return false; } return true; }
-
   function mergeSameTeam(blocks){
     if(blocks.length<=1) return blocks.slice();
     const out=[blocks[0]];
@@ -104,29 +116,28 @@
     return out;
   }
 
-  // Remove any block < SMOOTH_MINUTES by merging into neighbor (prefer previous)
+  // Remove any block < SMOOTH_MINUTES by merging into a neighbor (prefer previous)
   function removeTinyBlocks(blocks){
-    if(blocks.length<=1) return blocks.slice();
+    if(blocks.length<=1) return {arr:blocks.slice(), notes:[]};
     let arr = blocks.slice();
     const notes = [];
-
     let changed = true;
-    while (changed){
+    while(changed){
       changed = false;
       for(let i=0;i<arr.length;i++){
         const dur = arr[i].end - arr[i].start;
-        if (dur >= SMOOTH_MINUTES) continue;
+        if(dur >= SMOOTH_MINUTES) continue;
 
-        const from = arr[i];
-        if (i>0){
-          const to = arr[i-1];
-          notes.push({fromIdx:i, toIdx:i-1, infoText:`Merged ${minToTime(from.start)}–${minToTime(from.end)} (${dur} min) into previous (${minToTime(to.start)}–${minToTime(to.end)})`});
-          to.end = Math.max(to.end, from.end);
+        const tiny = arr[i];
+        if(i>0){
+          const prev = arr[i-1];
+          notes.push({from:`${minToTime(tiny.start)}–${minToTime(tiny.end)}`, to:`${minToTime(prev.start)}–${minToTime(prev.end)}`, dur});
+          prev.end = Math.max(prev.end, tiny.end);
           arr.splice(i,1);
-        } else if (arr.length>1){
-          const to = arr[1];
-          notes.push({fromIdx:i, toIdx:1, infoText:`Merged ${minToTime(from.start)}–${minToTime(from.end)} (${dur} min) into next (${minToTime(to.start)}–${minToTime(to.end)})`});
-          to.start = Math.min(to.start, from.start);
+        }else if(arr.length>1){
+          const next = arr[1];
+          notes.push({from:`${minToTime(tiny.start)}–${minToTime(tiny.end)}`, to:`${minToTime(next.start)}–${minToTime(next.end)}`, dur});
+          next.start = Math.min(next.start, tiny.start);
           arr.splice(0,1);
         }
         arr = mergeSameTeam(arr);
@@ -158,7 +169,6 @@
       raw.push({start:a, end:b, teamIds});
     }
 
-    // merge identical neighbors then remove tiny blocks (<5)
     const merged = mergeSameTeam(raw);
     const {arr:smoothed, notes} = removeTinyBlocks(merged);
 
@@ -170,26 +180,25 @@
       return { id: ex?.id || uid(), start:b.start, end:b.end, teamIds:b.teamIds.slice(), cash: ex?.cash || 0, card: ex?.card || 0 };
     });
 
-    state.lastMergeNotes = notes; // keep for toast + audit
+    state.lastMergeNotes = notes; // save for toast & audit
+
     renderPeriods();
     periodsDirtyBadge.style.display='none';
 
-    if (notes.length > 0) {
-      toast(`Merged ${notes.length} short period${notes.length>1?'s':''} (< ${SMOOTH_MINUTES} min).`);
-    } else {
-      toast('Periods updated from shifts.');
-    }
+    if (notes.length > 0) toast(`Merged ${notes.length} short period${notes.length>1?'s':''} (< ${SMOOTH_MINUTES} min).`);
+    else toast('Periods updated from shifts.');
   }
 
   function renderPeriods(){
     elPeriodList.innerHTML='';
-    if (state.periods.length===0){ noPeriodsNote.style.display='block'; return; }
+    if (state.periods.length===0){ noPeriodsNote.style.display='flex'; return; }
     noPeriodsNote.style.display='none';
 
     state.periods.forEach((p, i)=>{
       const node = periodRowTmpl.content.firstElementChild.cloneNode(true);
       node.dataset.id = p.id;
-      node.querySelector('.when').textContent = `Period #${i+1}: ${minToTime(p.start)} → ${minToTime(p.end)} (${p.end-p.start} min)`;
+      const dur = p.end - p.start;
+      node.querySelector('.when').innerHTML = `Period #${i+1}: ${minToTime(p.start)} → ${minToTime(p.end)} <span class="badge">${dur} min</span>`;
       const names = p.teamIds.map(id => state.baristas.find(b=>b.id===id)?.name || id).join(', ');
       node.querySelector('.who').textContent = `Team: ${names}`;
 
@@ -268,11 +277,13 @@
     mergeWrap.innerHTML = '';
     auditWrap.innerHTML = '';
 
+    // Merge notes (only if any)
     if (state.lastMergeNotes.length){
       const ul = document.createElement('ul');
       ul.style.margin='0'; ul.style.paddingLeft='18px';
       state.lastMergeNotes.forEach(n=>{
-        const li=document.createElement('li'); li.textContent = n.infoText; ul.appendChild(li);
+        const li=document.createElement('li'); li.textContent = `Merged ${n.from} (${n.dur} min) into ${n.to}`;
+        ul.appendChild(li);
       });
       const title=document.createElement('div');
       title.innerHTML = `<strong>Merge notes:</strong>`;
@@ -280,28 +291,38 @@
       mergeWrap.appendChild(ul);
     }
 
+    // Per-period accordion
     calc.audit.forEach(period=>{
       const names = period.teamIds.map(id => state.baristas.find(b=>b.id===id)?.name || id).join(', ');
+      const eachMath = `$${fmtMoney(period.cash)} cash ÷ ${period.teamIds.length} = $${fmtMoney(period.eachCash)} each; $${fmtMoney(period.card)} card ÷ ${period.teamIds.length} = $${fmtMoney(period.eachCard)} each`;
+
+      const details = document.createElement('details');
+      details.open = false;
+      const summary = document.createElement('summary');
+      summary.textContent = period.title;
+      details.appendChild(summary);
+
+      const info = document.createElement('div');
+      info.className = 'muted';
+      info.style.margin = '6px 0 8px';
+      info.innerHTML = `<strong>Team:</strong> ${escapeHtml(names)} • <strong>Rule:</strong> Even split • <strong>Math:</strong> ${eachMath}`;
+      details.appendChild(info);
+
+      const tbl = document.createElement('table');
+      tbl.className = 'period-table';
       const perRows = period.teamIds.map(id=>{
         const name = state.baristas.find(b=>b.id===id)?.name || id;
         return {name, cash:period.eachCash, card:period.eachCard};
       }).sort((a,b)=>a.name.localeCompare(b.name));
-
-      const tbl = document.createElement('table');
       tbl.innerHTML = `
-        <caption style="text-align:left; font-weight:700; padding:6px 0">${escapeHtml(period.title)}</caption>
         <thead><tr><th>Barista</th><th>Cash share</th><th>Card share</th><th>Total</th></tr></thead>
         <tbody>
           ${perRows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>$${fmtMoney(r.cash)}</td><td>$${fmtMoney(r.card)}</td><td>$${fmtMoney(r.cash+r.card)}</td></tr>`).join('')}
         </tbody>
         <tfoot><tr><td>Paid Out totals</td><td>$${fmtMoney(period.cash)}</td><td>$${fmtMoney(period.card)}</td><td>$${fmtMoney(period.cash+period.card)}</td></tr></tfoot>
       `;
-      auditWrap.appendChild(tbl);
-
-      const note = document.createElement('div');
-      note.className='muted'; note.style.marginBottom='14px';
-      note.innerHTML = `<strong>Team:</strong> ${escapeHtml(names)} • <strong>Rule:</strong> even split among ${period.teamIds.length}`;
-      auditWrap.appendChild(note);
+      details.appendChild(tbl);
+      auditWrap.appendChild(details);
     });
   }
 
@@ -313,8 +334,10 @@
     const body = rows.map(r=>[r.name, fmtMoney(r.cash), fmtMoney(r.card), fmtMoney(r.total)]);
     body.push(['Totals', fmtMoney(rows.reduce((a,r)=>a+r.cash,0)), fmtMoney(rows.reduce((a,r)=>a+r.card,0)), fmtMoney(rows.reduce((a,r)=>a+r.total,0))]);
     const csv = [header, ...body].map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download='tip-split.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`tip-split-${todayStamp()}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
 
   // Buttons
@@ -340,11 +363,11 @@
   });
 
   document.getElementById('saveStateBtn').addEventListener('click', ()=>{
-    localStorage.setItem('baristaTipSplitter:v3', JSON.stringify(state));
+    localStorage.setItem('baristaTipSplitter:v4', JSON.stringify(state));
     toast('Saved.');
   });
   document.getElementById('loadStateBtn').addEventListener('click', ()=>{
-    const raw = localStorage.getItem('baristaTipSplitter:v3');
+    const raw = localStorage.getItem('baristaTipSplitter:v4');
     if(!raw) return toast('No saved data found.');
     try{
       const data = JSON.parse(raw);
