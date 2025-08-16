@@ -133,6 +133,7 @@ input::placeholder{color:var(--muted)}
 .period-head .who{color:var(--muted)}
 .period-inputs{display:flex; gap:10px; align-items:end; flex-wrap:wrap}
 .period-inputs label{display:flex; flex-direction:column; gap:4px; min-width:140px}
+.badge{display:inline-block; font-size:12px; padding:4px 8px; border-radius:999px; background:#ffd24d22; color:#e0a400; border:1px solid #e0a40044}
 
 /* switches, notes */
 .switch{display:flex; gap:8px; align-items:center}
@@ -159,9 +160,7 @@ input::placeholder{color:var(--muted)}
   margin:10px 0;
   background:rgba(0,0,0,.04);
 }
-.audit-chunk > summary{
-  cursor:pointer; padding:10px 12px; display:flex; align-items:center; gap:10px;
-}
+.audit-chunk > summary{cursor:pointer; padding:10px 12px; display:flex; align-items:center; gap:10px}
 .audit-chunk .chunk-title{font-weight:700}
 .audit-chunk .chunk-body{padding:10px 12px 12px}
 .audit .chunk-table table{width:100%; border-collapse:collapse; margin:8px 0}
@@ -169,9 +168,7 @@ input::placeholder{color:var(--muted)}
 .audit .chunk-table th:first-child, .audit .chunk-table td:first-child{text-align:left}
 
 /* HowTo accordion */
-.howto > summary{
-  font-weight:700; cursor:pointer; padding:6px 2px;
-}
+.howto > summary{font-weight:700; cursor:pointer; padding:6px 2px}
 
 /* Toast */
 .toast{
