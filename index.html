@@ -58,7 +58,7 @@
     <!-- 2) Auto periods -->
     <section class="card">
       <h2>2) Tip Payout Amounts by Time Period</h2>
-      <p class="hint">Auto-grouped by who was on at the same time. Periods <em>&lt; 5 min</em> are merged automatically. Enter Cash/Card for each line.</p>
+      <p class="hint">Auto-grouped by who was on at the same time. &lt;5 min periods are merged automatically.</p>
       <div class="row">
         <button id="refreshPeriodsBtn" class="btn btn-ghost" type="button">↻ Refresh periods from shifts</button>
         <span id="periodsDirtyBadge" class="badge" style="display:none;">shifts changed</span>
@@ -90,6 +90,7 @@
       <!-- Full audit collapsible -->
       <details id="auditWrap" class="card inner hidden">
         <summary><strong>Audit (Detailed math per period)</strong></summary>
+        <div id="mergeNotes" class="muted" style="margin:8px 0;"></div>
         <div id="auditLog" class="audit"></div>
       </details>
     </section>
