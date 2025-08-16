@@ -1,17 +1,18 @@
-/* Auto periods with strict "<5 min merge" + Quick Totals then expandable Audit */
+/* Theme restored + "<5 min merge" with toast only if merges happened + merge notes in audit */
 
 (function(){
   // ----- State -----
   const state = {
-    baristas: [],             // [{id,name,shifts:[{start,end}]}]
-    periods: [],              // [{id,start,end,teamIds:[id],cash,card}]
+    baristas: [],                  // [{id,name,shifts:[{start,end}]}]
+    periods: [],                   // [{id,start,end,teamIds:[id],cash,card}]
+    lastMergeNotes: []             // [{fromIdx,toIdx,infoText}]
   };
   const SMOOTH_MINUTES = 5;
 
   // ----- Helpers -----
   const $ = s => document.querySelector(s);
   const uid = () => Math.random().toString(36).slice(2,9);
-  function timeToMin(t){ if(!t) return null; const [h,m]=t.split(':').map(Number); if(isNaN(h)||isNaN(m)) return null; return h*60+m; }
+  function timeToMin(t){ if(!t) return null; const [h,m]=t.split(':').map(Number); return (isNaN(h)||isNaN(m))?null:h*60+m; }
   function minToTime(mm){ const h=Math.floor(mm/60), m=mm%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
   function fmtMoney(n){ return (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function assertRangeValid(s,e){ const ss=timeToMin(s), ee=timeToMin(e); return ss!=null && ee!=null && ee>ss; }
@@ -88,7 +89,7 @@
         if(s!=null && e!=null && s<=tMin && tMin<e){ ids.push(b.id); break; }
       }
     }
-    return ids.sort();
+    return ids.sort(); // canonical
   }
   function eqArray(a,b){ if(a.length!==b.length) return false; for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return false; } return true; }
 
@@ -103,34 +104,37 @@
     return out;
   }
 
-  // strictly remove any block < SMOOTH_MINUTES by merging into an adjacent block
+  // Remove any block < SMOOTH_MINUTES by merging into neighbor (prefer previous)
   function removeTinyBlocks(blocks){
     if(blocks.length<=1) return blocks.slice();
     let arr = blocks.slice();
+    const notes = [];
+
     let changed = true;
     while (changed){
       changed = false;
       for(let i=0;i<arr.length;i++){
         const dur = arr[i].end - arr[i].start;
         if (dur >= SMOOTH_MINUTES) continue;
-        // choose neighbor: prefer previous if exists, else next
+
+        const from = arr[i];
         if (i>0){
-          arr[i-1] = {...arr[i-1], end: arr[i].end}; // extend prev forward
+          const to = arr[i-1];
+          notes.push({fromIdx:i, toIdx:i-1, infoText:`Merged ${minToTime(from.start)}–${minToTime(from.end)} (${dur} min) into previous (${minToTime(to.start)}–${minToTime(to.end)})`});
+          to.end = Math.max(to.end, from.end);
           arr.splice(i,1);
-        } else {
-          // i == 0 and tiny
-          if (arr.length>1){
-            arr[1] = {...arr[1], start: arr[0].start}; // extend next backward
-            arr.splice(0,1);
-          }
+        } else if (arr.length>1){
+          const to = arr[1];
+          notes.push({fromIdx:i, toIdx:1, infoText:`Merged ${minToTime(from.start)}–${minToTime(from.end)} (${dur} min) into next (${minToTime(to.start)}–${minToTime(to.end)})`});
+          to.start = Math.min(to.start, from.start);
+          arr.splice(0,1);
         }
-        // after any change, merge same-team neighbors and restart
         arr = mergeSameTeam(arr);
         changed = true;
         break;
       }
     }
-    return arr;
+    return {arr, notes};
   }
 
   function generatePeriodsFromShifts(){
@@ -156,7 +160,7 @@
 
     // merge identical neighbors then remove tiny blocks (<5)
     const merged = mergeSameTeam(raw);
-    const smoothed = removeTinyBlocks(merged);
+    const {arr:smoothed, notes} = removeTinyBlocks(merged);
 
     // preserve amounts if same key exists
     const prior = new Map(state.periods.map(p => [`${p.start}-${p.end}-${p.teamIds.join('.')}`, p]));
@@ -166,9 +170,15 @@
       return { id: ex?.id || uid(), start:b.start, end:b.end, teamIds:b.teamIds.slice(), cash: ex?.cash || 0, card: ex?.card || 0 };
     });
 
+    state.lastMergeNotes = notes; // keep for toast + audit
     renderPeriods();
     periodsDirtyBadge.style.display='none';
-    toast('Periods updated (all <5 min merged). Enter Cash & Card for each line.');
+
+    if (notes.length > 0) {
+      toast(`Merged ${notes.length} short period${notes.length>1?'s':''} (< ${SMOOTH_MINUTES} min).`);
+    } else {
+      toast('Periods updated from shifts.');
+    }
   }
 
   function renderPeriods(){
@@ -204,7 +214,6 @@
 
   // ----- Calculation -----
   function calcTotals(){
-    // init results
     const results = {};
     state.baristas.forEach(b => results[b.id] = { name:b.name, cash:0, card:0, total:0 });
 
@@ -254,7 +263,23 @@
   }
 
   function renderAudit(calc){
-    const wrap = $('#auditLog'); wrap.innerHTML='';
+    const mergeWrap = $('#mergeNotes');
+    const auditWrap = $('#auditLog');
+    mergeWrap.innerHTML = '';
+    auditWrap.innerHTML = '';
+
+    if (state.lastMergeNotes.length){
+      const ul = document.createElement('ul');
+      ul.style.margin='0'; ul.style.paddingLeft='18px';
+      state.lastMergeNotes.forEach(n=>{
+        const li=document.createElement('li'); li.textContent = n.infoText; ul.appendChild(li);
+      });
+      const title=document.createElement('div');
+      title.innerHTML = `<strong>Merge notes:</strong>`;
+      mergeWrap.appendChild(title);
+      mergeWrap.appendChild(ul);
+    }
+
     calc.audit.forEach(period=>{
       const names = period.teamIds.map(id => state.baristas.find(b=>b.id===id)?.name || id).join(', ');
       const perRows = period.teamIds.map(id=>{
@@ -271,11 +296,12 @@
         </tbody>
         <tfoot><tr><td>Paid Out totals</td><td>$${fmtMoney(period.cash)}</td><td>$${fmtMoney(period.card)}</td><td>$${fmtMoney(period.cash+period.card)}</td></tr></tfoot>
       `;
-      wrap.appendChild(tbl);
+      auditWrap.appendChild(tbl);
+
       const note = document.createElement('div');
       note.className='muted'; note.style.marginBottom='14px';
       note.innerHTML = `<strong>Team:</strong> ${escapeHtml(names)} • <strong>Rule:</strong> even split among ${period.teamIds.length}`;
-      wrap.appendChild(note);
+      auditWrap.appendChild(note);
     });
   }
 
@@ -301,8 +327,7 @@
       const wrap = $('#auditWrap');
       if (wrap.classList.contains('hidden')) {
         renderAudit(calc);
-        wrap.classList.remove('hidden');
-        wrap.open = true;
+        wrap.classList.remove('hidden'); wrap.open = true;
         $('#toggleAuditBtn').textContent = '📑 Hide Audit';
       } else {
         wrap.classList.add('hidden');
@@ -324,13 +349,15 @@
     try{
       const data = JSON.parse(raw);
       state.baristas = Array.isArray(data.baristas)?data.baristas:[];
-      state.periods  = Array.isArray(data.periods)? data.periods : [];
+      state.periods  = Array.isArray(data.periods)?data.periods:[];
+      state.lastMergeNotes = Array.isArray(data.lastMergeNotes)?data.lastMergeNotes:[];
       renderBaristas(); renderPeriods(); toast('Loaded.');
     }catch{ alert('Could not load saved data.'); }
   });
   document.getElementById('resetStateBtn').addEventListener('click', ()=>{
     if(!confirm('Clear all baristas, shifts, and payout periods?')) return;
-    state.baristas=[]; state.periods=[]; renderBaristas(); renderPeriods();
+    state.baristas=[]; state.periods=[]; state.lastMergeNotes=[];
+    renderBaristas(); renderPeriods();
     $('#quickResults').classList.add('hidden'); $('#auditWrap').classList.add('hidden');
     toast('Cleared.');
   });
