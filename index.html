@@ -15,7 +15,7 @@
   </div>
 
   <header class="app-header">
-    <h1>Barista Tip Splitter</h1>
+    <h1>☕ Barista Tip Splitter</h1>
     <div class="header-actions">
       <button id="saveStateBtn" class="btn" type="button">💾 Save</button>
       <button id="loadStateBtn" class="btn" type="button">📂 Load</button>
@@ -27,21 +27,21 @@
     <!-- How To Use -->
     <section class="card">
       <details open class="howto">
-        <summary>How To Use</summary>
+        <summary><span class="step-badge">?</span> How To Use</summary>
         <ul>
           <li>Every time money is pulled from the register, record a <strong>Paid Out</strong> for a clean paper trail.</li>
           <li>Tips are split evenly among <strong>people actively working windows and making drinks</strong> during that time.</li>
           <li>Not eligible: anyone off-shift and just staying to clean.</li>
           <li>Add each barista once, then add <strong>one or more shifts</strong> under that barista.</li>
           <li>Section 2 auto-creates payout periods (unique team + contiguous time). <strong>Any period &lt; 5 minutes is merged</strong> into an adjacent period.</li>
-          <li>Enter the Cash and Card Paid Out for each line, then <strong>Calculate</strong>.</li>
+          <li>Enter Cash/Card for each period, then <strong>Calculate</strong>. Quick Totals show first; open the Audit for the math.</li>
         </ul>
       </details>
     </section>
 
     <!-- 1) Baristas -->
     <section class="card">
-      <h2>1) Baristas & Shifts</h2>
+      <h2><span class="step-badge">1</span> Baristas & Shifts</h2>
       <div class="row">
         <div class="barista-form">
           <label for="baristaName">Barista name</label>
@@ -55,25 +55,26 @@
       <div id="baristaList" class="list"></div>
     </section>
 
-    <!-- 2) Auto periods -->
+    <!-- 2) Periods -->
     <section class="card">
-      <h2>2) Tip Payout Amounts by Time Period</h2>
+      <h2><span class="step-badge">2</span> Tip Payout Amounts by Time Period</h2>
       <p class="hint">Auto-grouped by who was on at the same time. &lt;5 min periods are merged automatically.</p>
       <div class="row">
         <button id="refreshPeriodsBtn" class="btn btn-ghost" type="button">↻ Refresh periods from shifts</button>
         <span id="periodsDirtyBadge" class="badge" style="display:none;">shifts changed</span>
       </div>
       <div id="periodList" class="list"></div>
-      <div class="muted" id="noPeriodsNote" style="margin-top:8px; display:none;">
-        Add shifts above and click “Refresh periods from shifts” to generate payout lines.
+      <div id="noPeriodsNote" class="empty">
+        <div class="empty-emoji">🗂️</div>
+        <div>Add shifts above and click <em>Refresh periods from shifts</em> to generate payout lines.</div>
       </div>
     </section>
 
     <!-- 3) Calculate -->
     <section class="card">
-      <h2>3) Calculate</h2>
-      <div class="actions-right">
-        <button id="calcBtn" class="btn btn-primary" type="button">▶️ Run Calculation</button>
+      <h2><span class="step-badge">3</span> Calculate</h2>
+      <div class="cta-row">
+        <button id="calcBtn" class="btn btn-primary btn-lg" type="button">▶️ Calculate</button>
       </div>
 
       <!-- Quick totals first -->
@@ -118,22 +119,20 @@
     </div>
   </template>
 
-  <template id="shiftRowTmpl">
-    <div class="shift-row">
-      <div class="grid-2">
-        <div>
-          <label>In</label>
-          <input type="time" class="shift-in"/>
-        </div>
-        <div>
-          <label>Out</label>
-          <input type="time" class="shift-out"/>
-        </div>
+  <!-- Shift chip -->
+  <template id="shiftChipTmpl">
+    <div class="shift-chip">
+      <span class="chip-icon">🕒</span>
+      <div class="chip-fields">
+        <input type="time" class="shift-in" aria-label="Shift start"/>
+        <span>–</span>
+        <input type="time" class="shift-out" aria-label="Shift end"/>
       </div>
-      <button class="btn btn-ghost remove-shift-btn" type="button">Remove</button>
+      <button class="chip-remove btn btn-ghost" type="button" aria-label="Remove shift">✕</button>
     </div>
   </template>
 
+  <!-- Period row -->
   <template id="periodRowTmpl">
     <div class="period-row">
       <div class="period-head">
