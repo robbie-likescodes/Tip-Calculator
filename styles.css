@@ -121,6 +121,19 @@ input::placeholder{color:var(--muted)}
   border:1px solid var(--border); border-radius:12px; padding:10px;
 }
 
+/* Period rows */
+.period-row{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(0,0,0,.03);
+}
+.period-head{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px}
+.period-head .when{font-weight:700}
+.period-head .who{color:var(--muted)}
+.period-inputs{display:flex; gap:10px; align-items:end; flex-wrap:wrap}
+.period-inputs label{display:flex; flex-direction:column; gap:4px; min-width:140px}
+
 /* switches, notes */
 .switch{display:flex; gap:8px; align-items:center}
 .muted{color:var(--muted)}
@@ -149,23 +162,11 @@ input::placeholder{color:var(--muted)}
 .audit-chunk > summary{
   cursor:pointer; padding:10px 12px; display:flex; align-items:center; gap:10px;
 }
-.audit-chunk .pill{
-  display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; color:#0b1325;
-  background:var(--accent);
-}
 .audit-chunk .chunk-title{font-weight:700}
 .audit-chunk .chunk-body{padding:10px 12px 12px}
 .audit .chunk-table table{width:100%; border-collapse:collapse; margin:8px 0}
 .audit .chunk-table th, .audit .chunk-table td{padding:8px; border-bottom:1px solid var(--border); text-align:right}
 .audit .chunk-table th:first-child, .audit .chunk-table td:first-child{text-align:left}
-.audit .segments summary{cursor:pointer; margin-top:6px}
-.audit .segment-row{
-  display:grid; grid-template-columns:1.2fr .7fr .7fr 1fr; gap:8px; padding:6px 0; border-bottom:1px dashed var(--border);
-}
-.audit .segment-row .who{color:var(--muted)}
-.audit .segment-head{font-weight:700; padding:6px 0; border-bottom:1px solid var(--border)}
-.pill.cash{background:#7bd389}
-.pill.card{background:#9D7EFF; color:white}
 
 /* HowTo accordion */
 .howto > summary{
