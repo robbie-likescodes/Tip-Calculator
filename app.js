@@ -1,140 +1,342 @@
-// Accordion How-To
-document.querySelectorAll(".accordion").forEach(acc => {
-  acc.addEventListener("click", function () {
-    this.classList.toggle("active");
-    let panel = this.nextElementSibling;
-    panel.style.display = (panel.style.display === "block") ? "none" : "block";
-  });
-});
+/* Auto periods with strict "<5 min merge" + Quick Totals then expandable Audit */
 
-const baristasDiv = document.getElementById("baristas");
-const periodsDiv = document.getElementById("periods");
-const resultsDiv = document.getElementById("results");
-let baristaCount = 0;
+(function(){
+  // ----- State -----
+  const state = {
+    baristas: [],             // [{id,name,shifts:[{start,end}]}]
+    periods: [],              // [{id,start,end,teamIds:[id],cash,card}]
+  };
+  const SMOOTH_MINUTES = 5;
 
-document.getElementById("addBarista").addEventListener("click", () => {
-  const bDiv = document.createElement("div");
-  bDiv.className = "barista";
-  bDiv.innerHTML = `
-    <label>Name: <input type="text" class="bname" placeholder="Barista Name"/></label>
-    <button class="addShift">+ Add shift</button>
-    <button class="removeBarista">Remove</button>
-    <div class="shifts"></div>
-  `;
-  baristasDiv.appendChild(bDiv);
+  // ----- Helpers -----
+  const $ = s => document.querySelector(s);
+  const uid = () => Math.random().toString(36).slice(2,9);
+  function timeToMin(t){ if(!t) return null; const [h,m]=t.split(':').map(Number); if(isNaN(h)||isNaN(m)) return null; return h*60+m; }
+  function minToTime(mm){ const h=Math.floor(mm/60), m=mm%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
+  function fmtMoney(n){ return (Math.round(n*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function assertRangeValid(s,e){ const ss=timeToMin(s), ee=timeToMin(e); return ss!=null && ee!=null && ee>ss; }
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-  bDiv.querySelector(".addShift").addEventListener("click", () => {
-    const sDiv = document.createElement("div");
-    sDiv.innerHTML = `
-      In <input type="time" class="inTime"/>
-      Out <input type="time" class="outTime"/>
-      <button class="removeShift">Remove</button>
-    `;
-    sDiv.querySelector(".removeShift").addEventListener("click", () => sDiv.remove());
-    bDiv.querySelector(".shifts").appendChild(sDiv);
-    alert("You can add multiple shifts under the same Barista below");
-  });
+  // Toast
+  const toastEl = $('#toast'); let toastTimer=null;
+  function toast(msg, ms=2400){ toastEl.textContent=msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'), ms); }
 
-  bDiv.querySelector(".removeBarista").addEventListener("click", () => bDiv.remove());
-});
+  // ----- Baristas UI -----
+  const elBaristaList = $('#baristaList');
+  const baristaItemTmpl = $('#baristaItemTmpl');
+  const shiftRowTmpl = $('#shiftRowTmpl');
+  const periodsDirtyBadge = $('#periodsDirtyBadge');
 
-// Convert HH:MM -> minutes since midnight
-function toMinutes(t) {
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
+  function markPeriodsDirty(){ periodsDirtyBadge.style.display='inline-block'; }
 
-// Refresh periods
-document.getElementById("refreshPeriods").addEventListener("click", () => {
-  periodsDiv.innerHTML = "";
-  let shifts = [];
-  document.querySelectorAll(".barista").forEach(b => {
-    const name = b.querySelector(".bname").value || "Unnamed";
-    b.querySelectorAll(".shifts div").forEach(s => {
-      const inT = s.querySelector(".inTime").value;
-      const outT = s.querySelector(".outTime").value;
-      if (inT && outT) {
-        shifts.push({ name, start: toMinutes(inT), end: toMinutes(outT) });
-      }
+  function renderBaristas(){
+    elBaristaList.innerHTML='';
+    state.baristas.forEach(b=>{
+      const node = baristaItemTmpl.content.firstElementChild.cloneNode(true);
+      node.querySelector('.barista-name').textContent = b.name;
+
+      const shiftList = node.querySelector('.shift-list'); shiftList.innerHTML='';
+      b.shifts.forEach((sh, idx)=>{
+        const row = shiftRowTmpl.content.firstElementChild.cloneNode(true);
+        row.querySelector('.shift-in').value = sh.start || '';
+        row.querySelector('.shift-out').value = sh.end || '';
+        row.querySelector('.remove-shift-btn').addEventListener('click', ()=>{
+          b.shifts.splice(idx,1); renderBaristas(); markPeriodsDirty(); toast('Shift removed.');
+        });
+        row.querySelector('.shift-in').addEventListener('change', e=>{
+          sh.start = e.target.value;
+          if (sh.end && !assertRangeValid(sh.start, sh.end)) { alert('Shift end must be after start.'); sh.start=''; e.target.value=''; }
+          markPeriodsDirty();
+        });
+        row.querySelector('.shift-out').addEventListener('change', e=>{
+          sh.end = e.target.value;
+          if (sh.start && !assertRangeValid(sh.start, sh.end)) { alert('Shift end must be after start.'); sh.end=''; e.target.value=''; }
+          markPeriodsDirty();
+        });
+        shiftList.appendChild(row);
+      });
+
+      node.querySelector('.add-shift-btn').addEventListener('click', ()=>{
+        b.shifts.push({start:'', end:''}); renderBaristas(); markPeriodsDirty();
+        toast('You can add multiple shifts under the same Barista below.');
+      });
+      node.querySelector('.remove-barista-btn').addEventListener('click', ()=>{
+        state.baristas = state.baristas.filter(x=>x!==b); renderBaristas(); markPeriodsDirty(); toast('Barista removed.');
+      });
+
+      elBaristaList.appendChild(node);
     });
-  });
-
-  if (shifts.length === 0) return;
-
-  // collect unique time boundaries
-  let times = new Set();
-  shifts.forEach(s => { times.add(s.start); times.add(s.end); });
-  let sortedTimes = Array.from(times).sort((a,b)=>a-b);
-
-  // build segments
-  let periods = [];
-  for (let i=0; i<sortedTimes.length-1; i++) {
-    let start = sortedTimes[i];
-    let end = sortedTimes[i+1];
-    let team = shifts.filter(s => s.start < end && s.end > start).map(s=>s.name);
-    if (team.length > 0) {
-      periods.push({start,end,team});
-    }
   }
 
-  // merge periods if gap < 5 minutes
-  let merged = [];
-  for (let p of periods) {
-    if (merged.length === 0) {
-      merged.push(p);
-    } else {
-      let last = merged[merged.length-1];
-      if (p.start - last.end <= 5 && JSON.stringify(p.team) === JSON.stringify(last.team)) {
-        last.end = p.end; // extend
+  $('#addBaristaBtn').addEventListener('click', ()=>{
+    const name = $('#baristaName').value.trim();
+    if(!name) return alert('Enter a barista name.');
+    state.baristas.push({id:uid(), name, shifts:[]});
+    $('#baristaName').value=''; renderBaristas(); markPeriodsDirty();
+  });
+
+  // ----- Period generation -----
+  const elPeriodList = $('#periodList');
+  const periodRowTmpl = $('#periodRowTmpl');
+  const noPeriodsNote = $('#noPeriodsNote');
+
+  function activeAt(tMin, baristas){
+    const ids = [];
+    for(const b of baristas){
+      for(const sh of b.shifts){
+        const s=timeToMin(sh.start), e=timeToMin(sh.end);
+        if(s!=null && e!=null && s<=tMin && tMin<e){ ids.push(b.id); break; }
+      }
+    }
+    return ids.sort();
+  }
+  function eqArray(a,b){ if(a.length!==b.length) return false; for(let i=0;i<a.length;i++){ if(a[i]!==b[i]) return false; } return true; }
+
+  function mergeSameTeam(blocks){
+    if(blocks.length<=1) return blocks.slice();
+    const out=[blocks[0]];
+    for(let i=1;i<blocks.length;i++){
+      const cur=blocks[i], prev=out[out.length-1];
+      if(prev.end===cur.start && eqArray(prev.teamIds, cur.teamIds)){ prev.end = cur.end; }
+      else out.push({...cur});
+    }
+    return out;
+  }
+
+  // strictly remove any block < SMOOTH_MINUTES by merging into an adjacent block
+  function removeTinyBlocks(blocks){
+    if(blocks.length<=1) return blocks.slice();
+    let arr = blocks.slice();
+    let changed = true;
+    while (changed){
+      changed = false;
+      for(let i=0;i<arr.length;i++){
+        const dur = arr[i].end - arr[i].start;
+        if (dur >= SMOOTH_MINUTES) continue;
+        // choose neighbor: prefer previous if exists, else next
+        if (i>0){
+          arr[i-1] = {...arr[i-1], end: arr[i].end}; // extend prev forward
+          arr.splice(i,1);
+        } else {
+          // i == 0 and tiny
+          if (arr.length>1){
+            arr[1] = {...arr[1], start: arr[0].start}; // extend next backward
+            arr.splice(0,1);
+          }
+        }
+        // after any change, merge same-team neighbors and restart
+        arr = mergeSameTeam(arr);
+        changed = true;
+        break;
+      }
+    }
+    return arr;
+  }
+
+  function generatePeriodsFromShifts(){
+    // collect valid shifts
+    const baristas = state.baristas.map(b=>({
+      id:b.id, name:b.name, shifts:b.shifts.filter(sh=>assertRangeValid(sh.start, sh.end))
+    })).filter(b=>b.shifts.length>0);
+
+    // time boundaries
+    const set = new Set();
+    baristas.forEach(b=>b.shifts.forEach(sh=>{ set.add(timeToMin(sh.start)); set.add(timeToMin(sh.end)); }));
+    const times = [...set].filter(v=>v!=null).sort((a,b)=>a-b);
+
+    // raw blocks by active team
+    const raw=[];
+    for(let i=0;i<times.length-1;i++){
+      const a=times[i], b=times[i+1];
+      if (a>=b) continue;
+      const teamIds = activeAt(a, baristas);
+      if (teamIds.length===0) continue;
+      raw.push({start:a, end:b, teamIds});
+    }
+
+    // merge identical neighbors then remove tiny blocks (<5)
+    const merged = mergeSameTeam(raw);
+    const smoothed = removeTinyBlocks(merged);
+
+    // preserve amounts if same key exists
+    const prior = new Map(state.periods.map(p => [`${p.start}-${p.end}-${p.teamIds.join('.')}`, p]));
+    state.periods = smoothed.map(b=>{
+      const key = `${b.start}-${b.end}-${b.teamIds.join('.')}`;
+      const ex = prior.get(key);
+      return { id: ex?.id || uid(), start:b.start, end:b.end, teamIds:b.teamIds.slice(), cash: ex?.cash || 0, card: ex?.card || 0 };
+    });
+
+    renderPeriods();
+    periodsDirtyBadge.style.display='none';
+    toast('Periods updated (all <5 min merged). Enter Cash & Card for each line.');
+  }
+
+  function renderPeriods(){
+    elPeriodList.innerHTML='';
+    if (state.periods.length===0){ noPeriodsNote.style.display='block'; return; }
+    noPeriodsNote.style.display='none';
+
+    state.periods.forEach((p, i)=>{
+      const node = periodRowTmpl.content.firstElementChild.cloneNode(true);
+      node.dataset.id = p.id;
+      node.querySelector('.when').textContent = `Period #${i+1}: ${minToTime(p.start)} → ${minToTime(p.end)} (${p.end-p.start} min)`;
+      const names = p.teamIds.map(id => state.baristas.find(b=>b.id===id)?.name || id).join(', ');
+      node.querySelector('.who').textContent = `Team: ${names}`;
+
+      const cashEl = node.querySelector('.cash');
+      const cardEl = node.querySelector('.card');
+      cashEl.value = p.cash ? Number(p.cash).toFixed(2) : '';
+      cardEl.value = p.card ? Number(p.card).toFixed(2) : '';
+      cashEl.addEventListener('input', e=>{ const v=parseFloat(e.target.value); p.cash=isNaN(v)?0:v; });
+      cardEl.addEventListener('input', e=>{ const v=parseFloat(e.target.value); p.card=isNaN(v)?0:v; });
+
+      node.querySelector('.remove-period-btn').addEventListener('click', ()=>{
+        state.periods = state.periods.filter(x=>x.id!==p.id);
+        renderPeriods(); toast('Period removed.');
+      });
+
+      elPeriodList.appendChild(node);
+    });
+  }
+
+  // Wire refresh
+  document.getElementById('refreshPeriodsBtn').addEventListener('click', (e)=>{ e.preventDefault(); generatePeriodsFromShifts(); });
+
+  // ----- Calculation -----
+  function calcTotals(){
+    // init results
+    const results = {};
+    state.baristas.forEach(b => results[b.id] = { name:b.name, cash:0, card:0, total:0 });
+
+    const audit = [];
+    let totalCash=0, totalCard=0;
+
+    state.periods.forEach((p, idx)=>{
+      const team = p.teamIds.slice();
+      if (team.length===0) return;
+      const eachCash = (p.cash||0)/team.length;
+      const eachCard = (p.card||0)/team.length;
+
+      totalCash += (p.cash||0);
+      totalCard += (p.card||0);
+
+      team.forEach(id=>{
+        if(results[id]){ results[id].cash+=eachCash; results[id].card+=eachCard; }
+      });
+
+      audit.push({
+        title:`Period #${idx+1}: ${minToTime(p.start)} → ${minToTime(p.end)} (${p.end-p.start} min)`,
+        teamIds:team, cash:p.cash||0, card:p.card||0, eachCash, eachCard
+      });
+    });
+
+    Object.values(results).forEach(r=> r.total = r.cash + r.card);
+    return { results, totalsByType:{cash:totalCash, card:totalCard}, audit };
+  }
+
+  // ----- Results UI -----
+  function renderQuickTotals(calc){
+    const rows = Object.values(calc.results).map(r=>({name:r.name, cash:r.cash, card:r.card, total:r.total}))
+      .sort((a,b)=>a.name.localeCompare(b.name));
+    const table = document.createElement('table');
+    const sumCash = rows.reduce((a,r)=>a+r.cash,0);
+    const sumCard = rows.reduce((a,r)=>a+r.card,0);
+    const sumTotal = rows.reduce((a,r)=>a+r.total,0);
+    table.innerHTML = `
+      <thead><tr><th>Barista</th><th>Cash</th><th>Card</th><th>Total</th></tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>$${fmtMoney(r.cash)}</td><td>$${fmtMoney(r.card)}</td><td>$${fmtMoney(r.total)}</td></tr>`).join('')}
+      </tbody>
+      <tfoot><tr><td>Totals</td><td>$${fmtMoney(sumCash)}</td><td>$${fmtMoney(sumCard)}</td><td>$${fmtMoney(sumTotal)}</td></tr></tfoot>
+    `;
+    $('#summary').innerHTML=''; $('#summary').appendChild(table);
+    $('#quickResults').classList.remove('hidden');
+  }
+
+  function renderAudit(calc){
+    const wrap = $('#auditLog'); wrap.innerHTML='';
+    calc.audit.forEach(period=>{
+      const names = period.teamIds.map(id => state.baristas.find(b=>b.id===id)?.name || id).join(', ');
+      const perRows = period.teamIds.map(id=>{
+        const name = state.baristas.find(b=>b.id===id)?.name || id;
+        return {name, cash:period.eachCash, card:period.eachCard};
+      }).sort((a,b)=>a.name.localeCompare(b.name));
+
+      const tbl = document.createElement('table');
+      tbl.innerHTML = `
+        <caption style="text-align:left; font-weight:700; padding:6px 0">${escapeHtml(period.title)}</caption>
+        <thead><tr><th>Barista</th><th>Cash share</th><th>Card share</th><th>Total</th></tr></thead>
+        <tbody>
+          ${perRows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>$${fmtMoney(r.cash)}</td><td>$${fmtMoney(r.card)}</td><td>$${fmtMoney(r.cash+r.card)}</td></tr>`).join('')}
+        </tbody>
+        <tfoot><tr><td>Paid Out totals</td><td>$${fmtMoney(period.cash)}</td><td>$${fmtMoney(period.card)}</td><td>$${fmtMoney(period.cash+period.card)}</td></tr></tfoot>
+      `;
+      wrap.appendChild(tbl);
+      const note = document.createElement('div');
+      note.className='muted'; note.style.marginBottom='14px';
+      note.innerHTML = `<strong>Team:</strong> ${escapeHtml(names)} • <strong>Rule:</strong> even split among ${period.teamIds.length}`;
+      wrap.appendChild(note);
+    });
+  }
+
+  // CSV
+  function exportCsv(calc){
+    const rows = Object.values(calc.results).map(r=>({name:r.name, cash:r.cash, card:r.card, total:r.total}))
+      .sort((a,b)=>a.name.localeCompare(b.name));
+    const header = ['Barista','Cash','Card','Total'];
+    const body = rows.map(r=>[r.name, fmtMoney(r.cash), fmtMoney(r.card), fmtMoney(r.total)]);
+    body.push(['Totals', fmtMoney(rows.reduce((a,r)=>a+r.cash,0)), fmtMoney(rows.reduce((a,r)=>a+r.card,0)), fmtMoney(rows.reduce((a,r)=>a+r.total,0))]);
+    const csv = [header, ...body].map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='tip-split.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+
+  // Buttons
+  document.getElementById('calcBtn').addEventListener('click', ()=>{
+    if(state.baristas.length===0) return alert('Add at least one barista.');
+    if(state.periods.length===0){ generatePeriodsFromShifts(); if(state.periods.length===0) return; }
+    const calc = calcTotals();
+    renderQuickTotals(calc);
+    $('#toggleAuditBtn').onclick = ()=>{
+      const wrap = $('#auditWrap');
+      if (wrap.classList.contains('hidden')) {
+        renderAudit(calc);
+        wrap.classList.remove('hidden');
+        wrap.open = true;
+        $('#toggleAuditBtn').textContent = '📑 Hide Audit';
       } else {
-        merged.push(p);
+        wrap.classList.add('hidden');
+        $('#toggleAuditBtn').textContent = '📑 Show Audit';
       }
-    }
-  }
-
-  merged.forEach((p,i)=>{
-    const div = document.createElement("div");
-    div.className = "period";
-    const mins = p.end - p.start;
-    const startH = String(Math.floor(p.start/60)).padStart(2,"0");
-    const startM = String(p.start%60).padStart(2,"0");
-    const endH = String(Math.floor(p.end/60)).padStart(2,"0");
-    const endM = String(p.end%60).padStart(2,"0");
-    div.innerHTML = `
-      <h3>Period #${i+1}: ${startH}:${startM} → ${endH}:${endM} (${mins} min)</h3>
-      <p>Team: ${p.team.join(", ")}</p>
-      Cash: <input type="number" class="cash" value="0"/>
-      Card: <input type="number" class="card" value="0"/>
-    `;
-    periodsDiv.appendChild(div);
-  });
-});
-
-// Calculate
-document.getElementById("calculate").addEventListener("click", () => {
-  let totals = {};
-  document.querySelectorAll(".barista .bname").forEach(b => {
-    let name = b.value || "Unnamed";
-    totals[name] = {cash:0,card:0};
+    };
+    $('#exportCsvBtn').onclick = ()=>exportCsv(calc);
+    $('#printBtn').onclick = ()=>{ window.print(); toast('Printing'); };
+    toast('Calculated. Quick totals shown; open Audit for details.');
   });
 
-  document.querySelectorAll(".period").forEach(p=>{
-    const team = p.querySelector("p").textContent.replace("Team: ","").split(", ");
-    const cash = parseFloat(p.querySelector(".cash").value)||0;
-    const card = parseFloat(p.querySelector(".card").value)||0;
-    const splitCash = cash / team.length;
-    const splitCard = card / team.length;
-    team.forEach(name=>{
-      if (totals[name]) {
-        totals[name].cash += splitCash;
-        totals[name].card += splitCard;
-      }
-    });
+  document.getElementById('saveStateBtn').addEventListener('click', ()=>{
+    localStorage.setItem('baristaTipSplitter:v3', JSON.stringify(state));
+    toast('Saved.');
   });
+  document.getElementById('loadStateBtn').addEventListener('click', ()=>{
+    const raw = localStorage.getItem('baristaTipSplitter:v3');
+    if(!raw) return toast('No saved data found.');
+    try{
+      const data = JSON.parse(raw);
+      state.baristas = Array.isArray(data.baristas)?data.baristas:[];
+      state.periods  = Array.isArray(data.periods)? data.periods : [];
+      renderBaristas(); renderPeriods(); toast('Loaded.');
+    }catch{ alert('Could not load saved data.'); }
+  });
+  document.getElementById('resetStateBtn').addEventListener('click', ()=>{
+    if(!confirm('Clear all baristas, shifts, and payout periods?')) return;
+    state.baristas=[]; state.periods=[]; renderBaristas(); renderPeriods();
+    $('#quickResults').classList.add('hidden'); $('#auditWrap').classList.add('hidden');
+    toast('Cleared.');
+  });
+  document.getElementById('refreshPeriodsBtn').addEventListener('click', (e)=>{ e.preventDefault(); generatePeriodsFromShifts(); });
 
-  resultsDiv.innerHTML = `<div class="audit"><h3>Audit Summary</h3></div>`;
-  const auditDiv = resultsDiv.querySelector(".audit");
-  for (let [name,val] of Object.entries(totals)) {
-    auditDiv.innerHTML += `<p><strong>${name}</strong>: Cash $${val.cash.toFixed(2)} | Card $${val.card.toFixed(2)} | Total $${(val.cash+val.card).toFixed(2)}</p>`;
-  }
-});
+  // Init
+  renderBaristas(); renderPeriods();
+  setTimeout(()=>toast('Add baristas & shifts → Refresh periods → Enter amounts → Calculate'), 700);
+})();
