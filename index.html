@@ -8,6 +8,12 @@
   <meta name="color-scheme" content="light dark">
 </head>
 <body>
+  <!-- Top reminders -->
+  <div class="banner">
+    <p>⚠️ <strong>Please make sure and Payout Tips from register each time money is removed for a proper paper trail.</strong></p>
+    <p>🧾 <strong>This calculator is for you to use to help determine tip distributions, but is not submitted for any record keeping. Please claim proper tips using the Daily Sales QR Code.</strong></p>
+  </div>
+
   <header class="app-header">
     <h1>Barista Tip Splitter</h1>
     <div class="header-actions">
@@ -18,6 +24,23 @@
   </header>
 
   <main class="container">
+
+    <!-- How To Use -->
+    <section class="card">
+      <details open class="howto">
+        <summary>How To Use</summary>
+        <ul>
+          <li>Every time money is pulled from the register, it must be <strong>Paid Out</strong> in the register for a clean paper trail.</li>
+          <li>Tips are split evenly among <strong>everyone actively working windows and making drinks</strong> during that time period.</li>
+          <li>Baristas <strong>are not eligible</strong> for tips if they’re off-shift and only staying to clean.</li>
+          <li>Add each barista once, then add <strong>one or more shifts</strong> under that barista.</li>
+          <li>Enter each tip payout as an <strong>amount with a start and end time</strong> covering when those dollars were earned/paid.</li>
+          <li>Use <em>Smart rounding</em> if you want the cash and card totals to match your inputs exactly to the cent.</li>
+          <li>The <strong>Audit</strong> shows how each payout was divided and the math behind it.</li>
+        </ul>
+      </details>
+    </section>
+
     <section class="card">
       <h2>1) Baristas & Shifts</h2>
       <div class="row">
@@ -34,7 +57,7 @@
     </section>
 
     <section class="card">
-      <h2>2) Tip Chunks</h2>
+      <h2>2) Tip Payout Amounts by Time Period</h2>
       <div class="row grid-3">
         <div>
           <label for="tipType">Type</label>
@@ -59,7 +82,7 @@
         </div>
       </div>
       <div class="row">
-        <button id="addTipBtn" class="btn">Add Tip Chunk</button>
+        <button id="addTipBtn" class="btn">Add Tip Payout</button>
       </div>
       <div id="tipList" class="list"></div>
     </section>
@@ -86,19 +109,19 @@
           <button id="printBtn" class="btn btn-ghost">🖨️ Print</button>
         </div>
 
-        <details class="audit">
-          <summary>Audit Trail (who got what, when, and why)</summary>
+        <div class="audit">
+          <h3>Audit (Readable Breakdown)</h3>
           <div id="auditLog"></div>
-        </details>
+        </div>
       </div>
     </section>
 
     <section class="card">
       <h2>Notes & Assumptions</h2>
       <ul class="notes">
-        <li>Times are same-day in <strong>HH:MM</strong> (24h or AM/PM per your locale). End must be after start.</li>
-        <li>Each tip chunk is assumed to arrive <em>uniformly</em> over its time range.</li>
-        <li>At any moment, the tip amount is split evenly among all baristas clocked in at that moment.</li>
+        <li>Times are same-day in <strong>HH:MM</strong>. End must be after start.</li>
+        <li>Each payout amount is assumed to arrive <em>uniformly</em> over its time range.</li>
+        <li>At any moment, dollars are split evenly among baristas clocked in at that moment.</li>
         <li>“Smart rounding” adjusts pennies so per-type totals (Cash/Card) match your inputs exactly.</li>
       </ul>
     </section>
@@ -108,6 +131,9 @@
     <div>Made for fast end-of-day splits. ☕</div>
     <a href="https://github.com" target="_blank" rel="noreferrer">Deploy on GitHub Pages</a>
   </footer>
+
+  <!-- Toast / hints -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <template id="baristaItemTmpl">
     <div class="item">
@@ -148,6 +174,24 @@
       </div>
       <div class="muted tip-meta"></div>
     </div>
+  </template>
+
+  <!-- Audit chunk template -->
+  <template id="auditChunkTmpl">
+    <details class="audit-chunk">
+      <summary>
+        <span class="pill type"></span>
+        <span class="chunk-title"></span>
+      </summary>
+      <div class="chunk-body">
+        <div class="chunk-totals"></div>
+        <div class="chunk-table"></div>
+        <details class="segments">
+          <summary>Show math by segments</summary>
+          <div class="segment-rows"></div>
+        </details>
+      </div>
+    </details>
   </template>
 
   <script src="app.js"></script>
