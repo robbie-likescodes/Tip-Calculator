@@ -1,182 +1,102 @@
-/* Fun, modern “café” theme */
-:root{
-  --bg: #0e1218;
-  --card: rgba(21,27,38,0.8);
-  --glass: rgba(255,255,255,0.06);
-  --text: #ecf2ff;
-  --muted: #a9b0c3;
-  --brand: #9D7EFF;      /* lavender */
-  --brand-2: #7bd389;    /* matcha */
-  --accent: #FFB86B;     /* caramel */
-  --danger: #ff6b6b;
-  --border: #2a3244;
-  --shadow: 0 14px 40px rgba(0,0,0,.35);
+body {
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: #f8f8fc;
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
 }
 
-@media (prefers-color-scheme: light) {
-  :root{
-    --bg:#f9fbff; --card:#ffffff; --glass:#ffffffdd; --text:#161c2d; --muted:#5f6c85;
-    --border:#e7ecf5; --shadow:0 10px 28px rgba(23,30,50,.08);
-  }
+header {
+  background: #5a3d85;
+  color: white;
+  padding: 1rem;
+  text-align: center;
 }
 
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  background:
-    radial-gradient(1200px 600px at -10% -10%, #3a2d6a33, transparent 60%),
-    radial-gradient(900px 600px at 110% 10%, #3a6a4e33, transparent 60%),
-    var(--bg);
-  color:var(--text);
-  font:16px/1.5 ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+.reminder {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeeba;
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 6px;
 }
 
-/* Banner */
-.banner{
-  padding:10px 14px;
-  background:linear-gradient(90deg, #FFEDD5, #FFF7ED);
-  color:#3b2a11;
-  border-bottom:1px solid #f1c89f;
-}
-@media (prefers-color-scheme: dark){
-  .banner{
-    background:linear-gradient(90deg, #3a2d1b, #3b2a16);
-    color:#ffe6c9; border-bottom:1px solid #5b4630;
-  }
-}
-.banner p{margin:6px 0}
-
-/* Layout */
-.container{
-  width:min(1100px, 92vw);
-  margin:24px auto 80px;
-  display:grid;
-  gap:16px;
+section {
+  background: white;
+  margin: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.app-header, .app-footer{
-  width:100%;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:16px 24px;
-  background:var(--card);
-  backdrop-filter: blur(8px);
-  border-bottom:1px solid var(--border);
-  position:sticky; top:0; z-index:20;
-  box-shadow:var(--shadow);
-}
-.app-footer{
-  position:static; border-top:1px solid var(--border); border-bottom:none; margin-top:40px;
-}
-.app-header h1{margin:0; font-size:22px; letter-spacing:.2px}
-.header-actions{display:flex; gap:8px; align-items:center}
-.actions-right{display:flex; gap:8px; justify-content:flex-end}
-
-/* Cards */
-.card{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:18px;
-  box-shadow:var(--shadow);
-  padding:16px 16px 12px;
-}
-.card h2{margin:0 0 12px 0; font-size:18px}
-
-/* Grids & inputs */
-.row{display:flex; gap:12px; align-items:center; flex-wrap:wrap}
-.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-.grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
-.inline{display:flex; gap:8px; align-items:center}
-
-label{display:block; font-weight:600; margin-bottom:4px; color:var(--muted)}
-input[type="text"], input[type="time"], input[type="number"], select{
-  width:100%; padding:10px 12px; border-radius:12px; border:1px solid var(--border);
-  background:transparent; color:var(--text); outline:none;
-}
-input::placeholder{color:var(--muted)}
-
-.btn{
-  padding:10px 14px; border-radius:12px; border:1px solid var(--border);
-  background:linear-gradient(180deg, var(--glass), transparent);
-  color:var(--text); cursor:pointer; transition:.2s transform, .2s border-color, .2s box-shadow;
-}
-.btn:hover{border-color:var(--brand); transform:translateY(-1px); box-shadow:0 6px 14px rgba(0,0,0,.15)}
-.btn-primary{background:linear-gradient(180deg, var(--brand), #6f59ff); border-color:transparent; color:white}
-.btn-ghost{background:transparent; opacity:.85}
-.btn-ghost:hover{opacity:1}
-
-.hint{color:var(--muted); margin:6px 0 0}
-.list{display:grid; gap:10px; margin-top:12px}
-.item{
-  border:1px dashed var(--border);
-  border-radius:14px; padding:12px; background:rgba(0,0,0,0.03);
-}
-.item-head{display:flex; align-items:center; justify-content:space-between}
-.item-actions{display:flex; gap:6px}
-.shift-list{display:grid; gap:8px; margin-top:8px}
-.shift-row{
-  display:flex; gap:10px; align-items:end; justify-content:space-between;
-  border:1px solid var(--border); border-radius:12px; padding:10px;
+h2 {
+  margin-top: 0;
+  color: #5a3d85;
 }
 
-/* Period rows */
-.period-row{
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:12px;
-  background:rgba(0,0,0,.03);
+button {
+  background: #5a3d85;
+  color: white;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 0.5rem;
 }
-.period-head{display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px}
-.period-head .when{font-weight:700}
-.period-head .who{color:var(--muted)}
-.period-inputs{display:flex; gap:10px; align-items:end; flex-wrap:wrap}
-.period-inputs label{display:flex; flex-direction:column; gap:4px; min-width:140px}
-.badge{display:inline-block; font-size:12px; padding:4px 8px; border-radius:999px; background:#ffd24d22; color:#e0a400; border:1px solid #e0a40044}
 
-/* switches, notes */
-.switch{display:flex; gap:8px; align-items:center}
-.muted{color:var(--muted)}
-.pad-top{margin-top:10px}
-
-/* Results */
-.results.hidden{display:none}
-.results table{
-  width:100%; border-collapse:collapse; margin-top:10px; font-variant-numeric:tabular-nums;
+button:hover {
+  background: #472f6b;
 }
-.results th, .results td{
-  padding:10px 8px; border-bottom:1px solid var(--border); text-align:right;
+
+/* Accordion How-To */
+.accordion {
+  background-color: #eee;
+  color: #444;
+  cursor: pointer;
+  padding: 1rem;
+  border: none;
+  text-align: left;
+  outline: none;
+  font-size: 1rem;
+  transition: 0.4s;
+  width: 100%;
+  border-radius: 6px;
 }
-.results th:first-child, .results td:first-child{text-align:left}
-.results tfoot td{font-weight:700}
 
-/* Audit */
-.audit{margin-top:16px}
-.audit h3{margin:6px 0 8px}
-.audit-chunk{
-  border:1px solid var(--border);
-  border-radius:14px;
-  margin:10px 0;
-  background:rgba(0,0,0,.04);
+.active, .accordion:hover {
+  background-color: #ccc;
 }
-.audit-chunk > summary{cursor:pointer; padding:10px 12px; display:flex; align-items:center; gap:10px}
-.audit-chunk .chunk-title{font-weight:700}
-.audit-chunk .chunk-body{padding:10px 12px 12px}
-.audit .chunk-table table{width:100%; border-collapse:collapse; margin:8px 0}
-.audit .chunk-table th, .audit .chunk-table td{padding:8px; border-bottom:1px solid var(--border); text-align:right}
-.audit .chunk-table th:first-child, .audit .chunk-table td:first-child{text-align:left}
 
-/* HowTo accordion */
-.howto > summary{font-weight:700; cursor:pointer; padding:6px 2px}
-
-/* Toast */
-.toast{
-  position:fixed; bottom:20px; right:20px; z-index:1000;
-  background:rgba(20,22,29,.9); color:white; padding:12px 14px; border-radius:12px; min-width:220px;
-  box-shadow:var(--shadow); transform:translateY(20px); opacity:0; pointer-events:none; transition:.25s;
+.panel {
+  padding: 0 1rem;
+  display: none;
+  background-color: white;
+  overflow: hidden;
 }
-.toast.show{transform:translateY(0); opacity:1; pointer-events:auto}
 
-/* Links */
-a{color:var(--brand)}
+input {
+  padding: 0.4rem;
+  margin: 0.3rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.barista, .period {
+  border: 1px solid #ddd;
+  padding: 0.8rem;
+  margin: 0.8rem 0;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.audit {
+  background: #f1f5ff;
+  border: 1px solid #d0d9ff;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.audit h3 {
+  margin-top: 0;
+}
