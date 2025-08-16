@@ -30,17 +30,18 @@
       <details open class="howto">
         <summary>How To Use</summary>
         <ul>
-          <li>Every time money is pulled from the register, it must be <strong>Paid Out</strong> in the register for a clean paper trail.</li>
-          <li>Tips are split evenly among <strong>everyone actively working windows and making drinks</strong> during that time period.</li>
-          <li>Baristas <strong>are not eligible</strong> for tips if they’re off-shift and only staying to clean.</li>
+          <li>Every time money is pulled from the register, it must be <strong>Paid Out</strong> for a clean paper trail.</li>
+          <li>Tips are split evenly among <strong>people actively working windows and making drinks</strong> during that time.</li>
+          <li>Not eligible: anyone off-shift and just staying to clean.</li>
           <li>Add each barista once, then add <strong>one or more shifts</strong> under that barista.</li>
-          <li>Enter each tip payout as an <strong>amount with a start and end time</strong> covering when those dollars were earned/paid.</li>
-          <li>Use <em>Smart rounding</em> if you want the cash and card totals to match your inputs exactly to the cent.</li>
-          <li>The <strong>Audit</strong> shows how each payout was divided and the math behind it.</li>
+          <li><strong>Section 2 auto-creates payout periods</strong> (unique team + time block). Enter the Cash and Card Paid Out for each line.</li>
+          <li>Use <em>Smart rounding</em> to make totals match inputs to the cent.</li>
+          <li>The <strong>Audit</strong> shows who split what for each period and the math behind it.</li>
         </ul>
       </details>
     </section>
 
+    <!-- Section 1 -->
     <section class="card">
       <h2>1) Baristas & Shifts</h2>
       <div class="row">
@@ -56,37 +57,20 @@
       <div id="baristaList" class="list"></div>
     </section>
 
+    <!-- Section 2 -->
     <section class="card">
       <h2>2) Tip Payout Amounts by Time Period</h2>
-      <div class="row grid-3">
-        <div>
-          <label for="tipType">Type</label>
-          <select id="tipType">
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-          </select>
-        </div>
-        <div>
-          <label for="tipAmount">Amount</label>
-          <input id="tipAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" />
-        </div>
-        <div class="grid-2">
-          <div>
-            <label for="tipStart">Start</label>
-            <input id="tipStart" type="time" />
-          </div>
-          <div>
-            <label for="tipEnd">End</label>
-            <input id="tipEnd" type="time" />
-          </div>
-        </div>
-      </div>
+      <p class="hint">These periods are auto-grouped by who was on at the same time. Enter the Cash/Card Paid Out for each line.</p>
       <div class="row">
-        <button id="addTipBtn" class="btn">Add Tip Payout</button>
+        <button id="refreshPeriodsBtn" class="btn btn-ghost">↻ Refresh periods from shifts</button>
       </div>
-      <div id="tipList" class="list"></div>
+      <div id="periodList" class="list"></div>
+      <div class="muted" id="noPeriodsNote" style="margin-top:8px; display:none;">
+        Add shifts above and click “Refresh periods from shifts” to generate payout lines.
+      </div>
     </section>
 
+    <!-- Section 3 -->
     <section class="card">
       <h2>3) Calculate</h2>
       <div class="row grid-3">
@@ -120,8 +104,8 @@
       <h2>Notes & Assumptions</h2>
       <ul class="notes">
         <li>Times are same-day in <strong>HH:MM</strong>. End must be after start.</li>
-        <li>Each payout amount is assumed to arrive <em>uniformly</em> over its time range.</li>
-        <li>At any moment, dollars are split evenly among baristas clocked in at that moment.</li>
+        <li>Payout periods are merged when the active team remains identical across adjacent time.</li>
+        <li>Each period’s dollars are split evenly across the baristas active in that period.</li>
         <li>“Smart rounding” adjusts pennies so per-type totals (Cash/Card) match your inputs exactly.</li>
       </ul>
     </section>
@@ -164,32 +148,34 @@
     </div>
   </template>
 
-  <template id="tipItemTmpl">
-    <div class="item tip">
-      <div class="item-head">
-        <strong class="tip-title"></strong>
-        <div class="item-actions">
-          <button class="btn btn-ghost remove-tip-btn">Remove</button>
-        </div>
+  <!-- Period line -->
+  <template id="periodRowTmpl">
+    <div class="period-row">
+      <div class="period-head">
+        <div class="when"></div>
+        <div class="who"></div>
       </div>
-      <div class="muted tip-meta"></div>
+      <div class="period-inputs">
+        <label>Cash
+          <input type="number" class="cash" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+        </label>
+        <label>Card
+          <input type="number" class="card" inputmode="decimal" step="0.01" min="0" placeholder="0.00">
+        </label>
+        <button class="btn btn-ghost remove-period-btn">Remove</button>
+      </div>
     </div>
   </template>
 
-  <!-- Clear, expandable per-chunk audit -->
+  <!-- Audit per period -->
   <template id="auditChunkTmpl">
     <details class="audit-chunk">
       <summary>
-        <span class="pill type"></span>
         <span class="chunk-title"></span>
       </summary>
       <div class="chunk-body">
         <div class="chunk-totals"></div>
         <div class="chunk-table"></div>
-        <details class="segments">
-          <summary>Show math by segments</summary>
-          <div class="segment-rows"></div>
-        </details>
       </div>
     </details>
   </template>
